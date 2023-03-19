@@ -1,6 +1,5 @@
 """Django settings for yatube project."""
 
-import os
 from pathlib import Path
 
 

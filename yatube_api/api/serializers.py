@@ -21,7 +21,6 @@ class PostSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.ReadOnlyField(source='author.username')
     post = serializers.ReadOnlyField(source='post.id')
@@ -29,4 +28,3 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = '__all__'
-
