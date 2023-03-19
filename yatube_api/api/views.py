@@ -44,8 +44,7 @@ class PostViewSet(ModelViewSet):
         if instance.author != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance, data=request.data,
-                                         partial=partial
-        )
+                                         partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
@@ -72,8 +71,7 @@ class CommentViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance, data=request.data,
-                                         partial=True
-        )
+                                         partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -87,8 +85,7 @@ class CommentViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance, data=request.data,
-                                         partial=True
-        )
+                                         partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
