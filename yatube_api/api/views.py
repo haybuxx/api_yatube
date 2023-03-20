@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from posts.models import Group, Post
 
 from .permissions import IsAuthorOrReadOnly
@@ -6,7 +6,6 @@ from .serializers import CommentSerializer, GroupSerializer, PostSerializer
 
 from django.shortcuts import get_object_or_404
 
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
@@ -21,6 +20,9 @@ class GroupViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().create(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        serializer.save()
+
 
 class PostViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -29,6 +31,12 @@ class PostViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def perform_destroy(self, instance):
+        instance.delete()
+
+    def perform_update(self, serializer):
+        serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         post = self.get_object()
@@ -61,6 +69,9 @@ class CommentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
         serializer.save(author=self.request.user, post=post)
+
+    def perform_update(self, serializer):
+        serializer.save()
 
     def update(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
