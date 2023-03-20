@@ -1,66 +1,43 @@
-from rest_framework import viewsets, permissions, status
-from posts.models import Group, Post
+from rest_framework import viewsets, status
+from posts.models import Group, Post, Comment
 
-from .permissions import IsAuthorOrReadOnly
 from .serializers import CommentSerializer, GroupSerializer, PostSerializer
 
 from django.shortcuts import get_object_or_404
 
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
+from rest_framework.exceptions import PermissionDenied
 
-class GroupViewSet(viewsets.ModelViewSet):
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
-    def create(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        return super().create(request, *args, **kwargs)
-
-    def perform_create(self, serializer):
-        serializer.save()
-
 
 class PostViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated]
     serializer_class = PostSerializer
     queryset = Post.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def perform_destroy(self, instance):
-        instance.delete()
+    def perform_destroy(self, serializer):
+        if serializer.author != self.request.user:
+            raise PermissionDenied(status.HTTP_403_FORBIDDEN)
+        super(PostViewSet, self).perform_destroy(serializer)
 
     def perform_update(self, serializer):
-        serializer.save()
-
-    def destroy(self, request, *args, **kwargs):
-        post = self.get_object()
-        if post.author == request.user:
-            self.perform_destroy(post)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        serializer = self.get_serializer(instance, data=request.data,
-                                         partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
+        if serializer.instance.author != self.request.user:
+            raise PermissionDenied(status.HTTP_403_FORBIDDEN)
+        serializer.save(author=self.request.user)
+        super().perform_update(serializer)
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
+    queryset = Comment.objects.all()
+
 
     def get_queryset(self):
         post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
@@ -71,32 +48,14 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user, post=post)
 
     def perform_update(self, serializer):
-        serializer.save()
+        if serializer.instance.author != self.request.user:
+            raise PermissionDenied(status.HTTP_403_FORBIDDEN)
+        post_id = self.kwargs.get('post_id')
+        serializer.save(author=self.request.user,
+                        post=get_object_or_404(Post, pk=post_id))
+        super(CommentViewSet, self).perform_update(serializer)
 
-    def update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        instance = self.get_object()
-        if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-        serializer = self.get_serializer(instance, data=request.data,
-                                         partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
-    def partial_update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-        instance = self.get_object()
-        if instance.author != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-        serializer = self.get_serializer(instance, data=request.data,
-                                         partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+    def perform_destroy(self, serializer):
+        if serializer.author != self.request.user:
+            raise PermissionDenied(status.HTTP_403_FORBIDDEN)
+        super(CommentViewSet, self).perform_destroy(serializer)
